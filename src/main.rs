@@ -31,8 +31,8 @@ fn print_prompt() {
     
     // 获取用户名和主机名
     let username = whoami::username();
-    let hostname = whoami::hostname();
-    
+    //let hostname = whoami::hostname();
+    let hostname = whoami::fallible::hostname().unwrap_or_else(|_| "unknown".to_string());
     print!("{}@{}:{} $ ", username, hostname, current_dir);
     io::stdout().flush().unwrap();
 }
@@ -122,27 +122,60 @@ fn execute_pipeline(commands: &[&str]) -> io::Result<()> {
         let mut cmd = Command::new(parts[0]);
         cmd.args(&parts[1..]);
         
-        // 设置输入输出
+        // 设置输入
         if let Some(prev_out) = previous_output {
             cmd.stdin(prev_out);
         }
         
-        // 如果不是最后一个命令，准备管道输出
-        if i < commands.len() - 1 {
-            cmd.stdout(Stdio::piped());
+        // 设置输出
+        cmd.stdout(if i < commands.len() - 1 {
+            Stdio::piped()
         } else {
-            cmd.stdout(Stdio::inherit());
-        }
+            Stdio::inherit()
+        });
         
         let child = cmd.spawn()?;
         
-        // 关闭前一个命令的输出（当前命令已经接管）
-        if let Some(prev_out) = previous_output.take() {
-            drop(prev_out);
-        }
-        
+        // 更新 previous_output 而不产生借用冲突
         previous_output = child.stdout;
     }
     
     Ok(())
 }
+
+// fn execute_pipeline(commands: &[&str]) -> io::Result<()> {
+//     let mut previous_output = None;
+    
+//     for (i, cmd_str) in commands.iter().enumerate() {
+//         let parts: Vec<&str> = cmd_str.split_whitespace().collect();
+//         if parts.is_empty() {
+//             continue;
+//         }
+        
+//         let mut cmd = Command::new(parts[0]);
+//         cmd.args(&parts[1..]);
+        
+//         // 设置输入输出
+//         if let Some(prev_out) = previous_output {
+//             cmd.stdin(prev_out);
+//         }
+        
+//         // 如果不是最后一个命令，准备管道输出
+//         if i < commands.len() - 1 {
+//             cmd.stdout(Stdio::piped());
+//         } else {
+//             cmd.stdout(Stdio::inherit());
+//         }
+        
+//         let child = cmd.spawn()?;
+        
+//         // 关闭前一个命令的输出（当前命令已经接管）
+//         if let Some(prev_out) = previous_output.take() {
+//             drop(prev_out);
+//         }
+        
+//         previous_output = child.stdout;
+//     }
+    
+//     Ok(())
+// }
