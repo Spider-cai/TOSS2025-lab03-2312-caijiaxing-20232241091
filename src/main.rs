@@ -179,3 +179,31 @@ fn execute_pipeline(commands: &[&str]) -> io::Result<()> {
     
 //     Ok(())
 // }
+#[cfg(test)]
+mod tests {
+     //use super::*;
+    //use std::process::Output;
+    use std::process::Command as StdCommand;
+
+    fn run_shell_command(cmd: &str) -> String {
+        let output = StdCommand::new("sh")
+            .arg("-c")
+            .arg(cmd)
+            .output()
+            .expect("Failed to execute command");
+        String::from_utf8(output.stdout).unwrap()
+    }
+
+    #[test]
+    fn test_basic_command() {
+        let output = run_shell_command("echo hello");
+        assert_eq!(output.trim(), "hello");
+    }
+
+    #[test]
+    fn test_pipeline() {
+        let output = run_shell_command("ls | head -n 3 | wc -l");
+        let count = output.trim().parse::<i32>().unwrap();
+        assert!(count <= 3);
+    }
+}
